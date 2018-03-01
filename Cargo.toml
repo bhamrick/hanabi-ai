@@ -5,3 +5,4 @@ authors = ["Brian Hamrick <brian.c.hamrick@gmail.com>"]
 
 [dependencies]
 rand = "0.4"
+rayon = "1.0"

@@ -132,7 +132,7 @@ pub struct GameState {
     action_log: Vec<CompletedAction>,
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Action {
     Discard(usize),
     Play(usize),
@@ -162,7 +162,7 @@ pub enum CompletedAction {
 // Game states are not hashable, but each one is uniquely determined by the
 // sequence of actions taken (and the information revealed by them), as well
 // as the set of visible cards.
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Fingerprint {
     known_cards: Vec<(CardId, Card)>,
     actions: Vec<CompletedAction>,
@@ -184,7 +184,7 @@ pub enum ActionError {
 
 #[derive(Debug, Clone)]
 pub enum ActionResult {
-    Acted(CompletedAction, GameState),
+    Acted(CompletedAction),
     Illegal(IllegalAction),
     Error(ActionError),
     Finished(i8),
@@ -217,6 +217,38 @@ impl GameState {
             information: HashMap::new(),
             action_log: Vec::new(),
         }
+    }
+
+    pub fn reduce_to_player_view(&mut self, player: Player) {
+        let mut viewed_card_map = HashMap::new();
+        for (&p, h) in self.hands.iter() {
+            if p != player {
+                for c_id in h.iter() {
+                    if let Some(&c) = self.card_map.get(c_id) {
+                        viewed_card_map.insert(*c_id, c);
+                    }
+                }
+            }
+        }
+
+        for c_id in self.played_cards.iter() {
+            if let Some(&c) = self.card_map.get(c_id) {
+                viewed_card_map.insert(*c_id, c);
+            }
+        }
+
+        for c_id in self.discarded_cards.iter() {
+            if let Some(&c) = self.card_map.get(c_id) {
+                viewed_card_map.insert(*c_id, c);
+            }
+        }
+
+        self.card_map = viewed_card_map;
+    }
+
+    pub fn reduce_to_current_view(&mut self) {
+        let player = self.current_turn;
+        self.reduce_to_player_view(player);
     }
 
     pub fn player_view(&self, player: Player) -> GameState {
@@ -260,31 +292,31 @@ impl GameState {
         }
     }
 
-    pub fn act(&self, action: Action) -> ActionResult {
-        let mut new_state = self.clone();
-        let current_player = new_state.current_turn;
+    pub fn act(&mut self, action: Action) -> ActionResult {
+        let current_player = self.current_turn;
         match action {
             Action::Discard(i) => {
-                if i >= new_state.hands[&current_player].len() {
+                if i >= self.hands[&current_player].len() {
                     return ActionResult::Illegal(IllegalAction::NoSuchCard);
                 }
-                if new_state.clues == 8 {
+                if self.clues == 8 {
                     return ActionResult::Illegal(IllegalAction::TooManyClues);
                 }
 
-                let c_id: CardId = new_state.hands[&current_player][i];
-                let c = match new_state.card_map.get(&c_id) {
+                let c_id: CardId = self.hands[&current_player][i];
+                let c = match self.card_map.get(&c_id) {
                     Some(&c) => c,
                     None => return ActionResult::Error(ActionError::UnknownCard),
                 };
 
-                new_state.hands.get_mut(&current_player).unwrap().remove(i);
-                new_state.discarded_cards.push(c_id);
-                new_state.clues += 1;
+                self.hands.get_mut(&current_player).unwrap().remove(i);
+                self.discarded_cards.push(c_id);
+                self.information.remove(&c_id);
+                self.clues += 1;
 
-                if new_state.final_turn == Some(current_player) {
+                if self.final_turn == Some(current_player) {
                     let mut total_score = 0;
-                    for (_, &r) in new_state.piles.iter() {
+                    for (_, &r) in self.piles.iter() {
                         total_score += match r {
                             Rank::One => 1,
                             Rank::Two => 2,
@@ -296,56 +328,57 @@ impl GameState {
                     return ActionResult::Finished(total_score);
                 }
 
-                if new_state.deck_size > 0 {
-                    new_state.hands.get_mut(&current_player).unwrap().push(new_state.next_card_id);
-                    new_state.next_card_id.increment();
-                    new_state.deck_size -= 1;
+                if self.deck_size > 0 {
+                    self.hands.get_mut(&current_player).unwrap().push(self.next_card_id);
+                    self.next_card_id.increment();
+                    self.deck_size -= 1;
                     
-                    if new_state.deck_size == 0 {
-                        new_state.final_turn = Some(current_player);
+                    if self.deck_size == 0 {
+                        self.final_turn = Some(current_player);
                     }
                 }
 
-                new_state.current_turn = current_player.next();
+                self.current_turn = current_player.next();
 
-                ActionResult::Acted(
-                    CompletedAction::Discarded(i, c),
-                    new_state,
-                )
+                let completed_action = CompletedAction::Discarded(i, c);
+
+                self.action_log.push(completed_action.clone());
+                ActionResult::Acted(completed_action)
             },
             Action::Play(i) => {
-                if i >= new_state.hands[&current_player].len() {
+                if i >= self.hands[&current_player].len() {
                     return ActionResult::Illegal(IllegalAction::NoSuchCard);
                 }
 
-                let c_id: CardId = new_state.hands[&current_player][i];
-                let c = match new_state.card_map.get(&c_id) {
+                let c_id: CardId = self.hands[&current_player][i];
+                let c = match self.card_map.get(&c_id) {
                     Some(&c) => c,
                     None => return ActionResult::Error(ActionError::UnknownCard),
                 };
 
-                new_state.hands.get_mut(&current_player).unwrap().remove(i);
+                self.hands.get_mut(&current_player).unwrap().remove(i);
+                self.information.remove(&c_id);
 
-                let suit_pile: Option<Rank> = new_state.piles.get(&c.suit).cloned();
+                let suit_pile: Option<Rank> = self.piles.get(&c.suit).cloned();
                 if c.rank.playable_on(suit_pile) {
-                    new_state.piles.insert(c.suit, c.rank);
-                    new_state.played_cards.push(c_id);
+                    self.piles.insert(c.suit, c.rank);
+                    self.played_cards.push(c_id);
 
-                    if c.rank == Rank::Five && new_state.clues < 8 {
-                        new_state.clues += 1;
+                    if c.rank == Rank::Five && self.clues < 8 {
+                        self.clues += 1;
                     }
                 } else {
-                    new_state.discarded_cards.push(c_id);
-                    new_state.strikes += 1;
+                    self.discarded_cards.push(c_id);
+                    self.strikes += 1;
 
-                    if new_state.strikes == 3 {
+                    if self.strikes == 3 {
                         return ActionResult::Finished(0);
                     }
                 }
 
-                if new_state.final_turn == Some(current_player) {
+                if self.final_turn == Some(current_player) {
                     let mut total_score = 0;
-                    for (_, &r) in new_state.piles.iter() {
+                    for (_, &r) in self.piles.iter() {
                         total_score += match r {
                             Rank::One => 1,
                             Rank::Two => 2,
@@ -357,41 +390,40 @@ impl GameState {
                     return ActionResult::Finished(total_score);
                 }
 
-                if new_state.deck_size > 0 {
-                    new_state.hands.get_mut(&current_player).unwrap().push(new_state.next_card_id);
-                    new_state.next_card_id.increment();
-                    new_state.deck_size -= 1;
+                if self.deck_size > 0 {
+                    self.hands.get_mut(&current_player).unwrap().push(self.next_card_id);
+                    self.next_card_id.increment();
+                    self.deck_size -= 1;
 
-                    if new_state.deck_size == 0 {
-                        new_state.final_turn = Some(current_player);
+                    if self.deck_size == 0 {
+                        self.final_turn = Some(current_player);
                     }
                 }
 
-                new_state.current_turn = current_player.next();
+                self.current_turn = current_player.next();
+                let completed_action = CompletedAction::Played(i, c);
+                self.action_log.push(completed_action.clone());
 
-                ActionResult::Acted(
-                    CompletedAction::Played(i, c),
-                    new_state,
-                )
+                ActionResult::Acted(completed_action)
             },
             Action::Clue(target, clue) => {
-                if target == new_state.current_turn {
+                if target == self.current_turn {
                     return ActionResult::Illegal(IllegalAction::CluedSelf);
                 }
-                if new_state.clues == 0 {
+                if self.clues == 0 {
                     return ActionResult::Illegal(IllegalAction::NoClues);
                 }
 
                 let mut matching_cards = Vec::new();
-                for &c_id in new_state.hands[&target].iter() {
-                    let c = match new_state.card_map.get(&c_id) {
+                for &c_id in self.hands[&target].iter() {
+                    let c = match self.card_map.get(&c_id) {
                         Some(&c) => c,
                         None => return ActionResult::Error(ActionError::UnknownCard),
                     };
                     if clue.matches(c) {
                         matching_cards.push(c_id);
                     }
-                    let info_vec: &mut Vec<Information> = new_state.information.entry(c_id).or_insert_with(Vec::new);
+                    let info_vec: &mut Vec<Information> = self.information.entry(c_id).or_insert_with(Vec::new);
                     info_vec.push(Information(clue, clue.matches(c)));
                 }
 
@@ -399,11 +431,11 @@ impl GameState {
                     return ActionResult::Illegal(IllegalAction::NoMatchingCards);
                 }
 
-                new_state.clues -= 1;
+                self.clues -= 1;
 
-                if new_state.final_turn == Some(current_player) {
+                if self.final_turn == Some(current_player) {
                     let mut total_score = 0;
-                    for (_, &r) in new_state.piles.iter() {
+                    for (_, &r) in self.piles.iter() {
                         total_score += match r {
                             Rank::One => 1,
                             Rank::Two => 2,
@@ -415,12 +447,11 @@ impl GameState {
                     return ActionResult::Finished(total_score);
                 }
 
-                new_state.current_turn = current_player.next();
+                self.current_turn = current_player.next();
 
-                ActionResult::Acted(
-                    CompletedAction::Clued(target, clue, matching_cards),
-                    new_state,
-                )
+                let completed_action = CompletedAction::Clued(target, clue, matching_cards);
+                self.action_log.push(completed_action.clone());
+                ActionResult::Acted(completed_action)
             },
         }
     }
@@ -447,6 +478,10 @@ impl GameState {
         unknowns
     }
 
+    pub fn current_player(&self) -> Player {
+        self.current_turn
+    }
+
     pub fn remaining_card_counts(&self) -> HashMap<Card, usize> {
         let mut seen_counts: HashMap<Card, usize> = HashMap::new();
         for (_, &c) in self.card_map.iter() {
@@ -468,7 +503,7 @@ impl GameState {
         remaining_counts
     }
 
-    pub fn determinize<R>(&self, priors: &HashMap<CardId, Vec<Weighted<Card>>>, rng: &mut R) -> GameState
+    pub fn determinize<R>(&mut self, priors: &HashMap<CardId, Vec<Weighted<Card>>>, rng: &mut R)
         where
         R: Rng,
     {
@@ -534,12 +569,9 @@ impl GameState {
             rng,
         );
 
-        let mut new_state = self.clone();
         for (&c_id, &c) in assignment.iter() {
-            new_state.card_map.insert(c_id, c);
+            self.card_map.insert(c_id, c);
         }
-
-        new_state
     }
 
     pub fn fingerprint(&self) -> Fingerprint {
@@ -565,48 +597,52 @@ impl GameState {
         let mut actions = Vec::new();
 
         for (i, _) in self.hands[&current_player].iter().enumerate() {
-            actions.push(Action::Discard(i));
+            if self.clues < 8 {
+                actions.push(Action::Discard(i));
+            }
             actions.push(Action::Play(i));
         }
 
-        for (&target, target_hand) in self.hands.iter() {
-            if target == current_player {
-                continue;
-            }
-            
-            for &suit in [Suit::Red, Suit::Green, Suit::Blue, Suit::Yellow, Suit::Purple].iter() {
-                let suit_clue = Clue::Suit(suit);
+        if self.clues > 0 {
+            for (&target, target_hand) in self.hands.iter() {
+                if target == current_player {
+                    continue;
+                }
+                
+                for &suit in [Suit::Red, Suit::Green, Suit::Blue, Suit::Yellow, Suit::Purple].iter() {
+                    let suit_clue = Clue::Suit(suit);
 
-                let mut has_match = false;
-                for c_id in target_hand.iter() {
-                    if let Some(&c) = self.card_map.get(c_id) {
-                        if suit_clue.matches(c) {
-                            has_match = true;
-                            break;
+                    let mut has_match = false;
+                    for c_id in target_hand.iter() {
+                        if let Some(&c) = self.card_map.get(c_id) {
+                            if suit_clue.matches(c) {
+                                has_match = true;
+                                break;
+                            }
                         }
                     }
-                }
 
-                if has_match {
-                    actions.push(Action::Clue(target, suit_clue));
-                }
-            }
-            
-            for &rank in [Rank::One, Rank::Two, Rank::Three, Rank::Four, Rank::Five].iter() {
-                let rank_clue = Clue::Rank(rank);
-
-                let mut has_match = false;
-                for c_id in target_hand.iter() {
-                    if let Some(&c) = self.card_map.get(c_id) {
-                        if rank_clue.matches(c) {
-                            has_match = true;
-                            break;
-                        }
+                    if has_match {
+                        actions.push(Action::Clue(target, suit_clue));
                     }
                 }
+                
+                for &rank in [Rank::One, Rank::Two, Rank::Three, Rank::Four, Rank::Five].iter() {
+                    let rank_clue = Clue::Rank(rank);
 
-                if has_match {
-                    actions.push(Action::Clue(target, rank_clue));
+                    let mut has_match = false;
+                    for c_id in target_hand.iter() {
+                        if let Some(&c) = self.card_map.get(c_id) {
+                            if rank_clue.matches(c) {
+                                has_match = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if has_match {
+                        actions.push(Action::Clue(target, rank_clue));
+                    }
                 }
             }
         }

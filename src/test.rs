@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use rand;
 
 use hanabi::{Card, GameState, Suit, Rank, Player, Clue, Action, ActionResult};
+use basic_mcts::MctsState;
 
 const SAMPLE_DECK : [Card; 50] = [
     Card { suit: Suit::Yellow, rank: Rank::One },
@@ -56,6 +57,7 @@ const SAMPLE_DECK : [Card; 50] = [
     Card { suit: Suit::Red, rank: Rank::Four },
 ];
 
+/*
 #[test]
 fn basic_test() {
     let state = GameState::initial(&SAMPLE_DECK);
@@ -97,3 +99,16 @@ fn basic_test() {
     println!("");
     println!("{:?}", final_theory);
 }
+
+#[test]
+fn test_mcts() {
+    let state = GameState::initial(&SAMPLE_DECK);
+    let alice_view = state.player_view(Player::Alice);
+
+    let mut alice_mcts = MctsState::new(alice_view, 1.4);
+
+    let mut rng = rand::thread_rng();
+
+    alice_mcts.run_playout(&mut rng);
+}
+*/

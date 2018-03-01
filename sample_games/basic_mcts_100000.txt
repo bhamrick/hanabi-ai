@@ -1,0 +1,117 @@
+Deck order:
+Card { suit: Yellow, rank: One }
+Card { suit: Green, rank: Three }
+Card { suit: Yellow, rank: One }
+Card { suit: Blue, rank: Five }
+Card { suit: Green, rank: Four }
+Card { suit: Yellow, rank: Five }
+Card { suit: Yellow, rank: Two }
+Card { suit: Red, rank: Two }
+Card { suit: Red, rank: One }
+Card { suit: Blue, rank: One }
+Card { suit: Red, rank: One }
+Card { suit: Green, rank: One }
+Card { suit: Yellow, rank: Four }
+Card { suit: Purple, rank: One }
+Card { suit: Green, rank: Four }
+Card { suit: Green, rank: Two }
+Card { suit: Blue, rank: Four }
+Card { suit: Red, rank: Three }
+Card { suit: Blue, rank: Three }
+Card { suit: Blue, rank: Two }
+Card { suit: Red, rank: Two }
+Card { suit: Purple, rank: Two }
+Card { suit: Purple, rank: Two }
+Card { suit: Purple, rank: Three }
+Card { suit: Red, rank: Three }
+Card { suit: Purple, rank: Three }
+Card { suit: Blue, rank: Three }
+Card { suit: Purple, rank: Four }
+Card { suit: Green, rank: One }
+Card { suit: Red, rank: Four }
+Card { suit: Green, rank: One }
+Card { suit: Red, rank: One }
+Card { suit: Purple, rank: Five }
+Card { suit: Blue, rank: Two }
+Card { suit: Red, rank: Five }
+Card { suit: Blue, rank: One }
+Card { suit: Yellow, rank: One }
+Card { suit: Purple, rank: Four }
+Card { suit: Purple, rank: One }
+Card { suit: Blue, rank: Four }
+Card { suit: Purple, rank: One }
+Card { suit: Yellow, rank: Three }
+Card { suit: Yellow, rank: Two }
+Card { suit: Yellow, rank: Three }
+Card { suit: Green, rank: Three }
+Card { suit: Yellow, rank: Four }
+Card { suit: Blue, rank: One }
+Card { suit: Green, rank: Five }
+Card { suit: Green, rank: Two }
+Card { suit: Red, rank: Four }
+
+Alice: Clue(Cathy, Rank(Two))
+Bob: Clue(Cathy, Rank(One))
+Cathy: Clue(Dave, Suit(Blue))
+Dave: Clue(Alice, Suit(Green))
+Alice: Clue(Dave, Suit(Green))
+Bob: Clue(Cathy, Suit(Yellow))
+Cathy: Clue(Alice, Rank(Four))
+Dave: Clue(Bob, Suit(Purple))
+Alice: Discard(3)
+Bob: Clue(Dave, Rank(One))
+Cathy: Play(0)
+Dave: Discard(0)
+Alice: Discard(0)
+Bob: Discard(1)
+Cathy: Clue(Dave, Rank(One))
+Dave: Discard(1)
+Alice: Clue(Dave, Suit(Blue))
+Bob: Clue(Cathy, Suit(Green))
+Cathy: Clue(Dave, Suit(Purple))
+Dave: Discard(1)
+Alice: Clue(Dave, Suit(Red))
+Bob: Discard(1)
+Cathy: Clue(Dave, Suit(Blue))
+Dave: Discard(0)
+Alice: Clue(Bob, Rank(Three))
+Bob: Discard(1)
+Cathy: Clue(Dave, Suit(Blue))
+Dave: Discard(2)
+Alice: Discard(0)
+Bob: Discard(0)
+Cathy: Clue(Dave, Rank(Three))
+Dave: Discard(0)
+Alice: Discard(0)
+Bob: Discard(1)
+Cathy: Play(1)
+Dave: Discard(1)
+Alice: Discard(0)
+Bob: Discard(3)
+Cathy: Play(0)
+Dave: Clue(Bob, Rank(Three))
+Alice: Discard(2)
+Bob: Clue(Cathy, Suit(Red))
+Cathy: Discard(0)
+Dave: Clue(Bob, Rank(One))
+Alice: Discard(1)
+Bob: Play(3)
+Cathy: Clue(Bob, Rank(Two))
+Dave: Discard(2)
+Alice: Clue(Cathy, Rank(One))
+Bob: Discard(3)
+Cathy: Clue(Alice, Rank(Two))
+Dave: Discard(1)
+Alice: Clue(Dave, Rank(Three))
+Bob: Discard(1)
+Cathy: Clue(Dave, Rank(Two))
+Dave: Play(2)
+Alice: Discard(1)
+Bob: Play(1)
+Cathy: Play(1)
+Dave: Play(1)
+Alice: Clue(Bob, Suit(Red))
+Bob: Play(0)
+Cathy: Play(0)
+Dave: Play(2)
+Final result: 10
