@@ -10,8 +10,8 @@ use rand::distributions::{IndependentSample, Range};
 use rayon::prelude::*;
 
 fn main() {
-    let batch_size: usize = 20;
-    let batches_per_move: usize = 10000;
+    let batch_size: usize = 100;
+    let batches_per_move: usize = 5000;
     let mut rng = rand::thread_rng();
 
     let mut deck: Vec<Card> = Vec::new();
